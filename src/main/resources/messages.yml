@@ -1,0 +1,110 @@
+##=====================================================================##
+#|                       SHTempFly - Messages                          |#
+#|                                                                     |#
+#|  Couleurs : & classiques et &#RRGGBB pour l'hexadécimal.           |#
+#|  Un message vide ("") n'est jamais envoyé.                         |#
+#|                                                                     |#
+#|  Placeholders temps : {TIME} (formaté) {SECONDS} {MINUTES}         |#
+#|                       {HOURS} {DAYS} {RAW} (secondes brutes)        |#
+#|  Autres : {PLAYER} {AMOUNT} {ARG} {WORLD} {REGION}                  |#
+##=====================================================================##
+
+prefix:
+  info: '&7&l« &e&lSH &8&l» '
+  success: '&7&l« &a&lSH &8&l» '
+  warning: '&7&l« &6&lSH &8&l» '
+  error: '&7&l« &c&lSH &8&l» '
+
+time:
+  # Format d'une unité de temps.
+  format: '{QUANTITY}{UNIT}'
+  separator: ' '
+  units:
+    seconds: 's'
+    minutes: 'm'
+    hours: 'h'
+    days: 'j'
+  infinite: 'Infini'
+  zero: '0s'
+
+fly:
+  enabled: '&7&l« &a&lSH &8&l» &7Fly &aactivé &7!'
+  disabled: '&7&l« &6&lSH &8&l» &7Fly &6désactivé &7!'
+  already-enabled: '&7&l« &a&lSH &8&l» &7Fly &aactivé &7!'
+  already-disabled: '&7&l« &6&lSH &8&l» &7Fly &6désactivé &7!'
+  # Retour envoyé à l''admin qui active / désactive le fly de quelqu''un d''autre.
+  enabled-other: '&7&l« &a&lSH &8&l» &7Fly de &f{PLAYER} &aactivé &7!'
+  disabled-other: '&7&l« &6&lSH &8&l» &7Fly de &f{PLAYER} &6désactivé &7!'
+  # Envoyé à un joueur en fly temporaire qui essaie de couper son fly.
+  toggle-denied: '&7&l« &6&lSH &8&l» &7Tu ne peux pas désactiver ton fly temporaire'
+  # Le joueur retrouve son fly en sortant d''une zone interdite.
+  restored: '&7&l« &a&lSH &8&l» &7Vous pouvez à nouveau fly'
+  out-of-time: '&7&l« &c&lSH &8&l» &7Vous n''avez plus de temps de fly'
+
+denied:
+  zone: '&7&l« &6&lSH &8&l» &7Cette zone restreint le fly'
+  height: '&7&l« &6&lSH &8&l» &7Vous volez trop haut'
+  island: '&7&l« &6&lSH &8&l» &7Cette île ne t''autorise pas le fly'
+
+balance:
+  # /fly time sur soi-même
+  self:
+    - '&7&l« &fTemps de vol de &6{PLAYER} &8&l»'
+    - '&8 • &fRestant&7: &e{DAYS}j&f, &e{HOURS}h&f, &e{MINUTES}m&f, &e{SECONDS}s'
+  self-unlimited:
+    - '&7&l« &fTemps de vol de &6{PLAYER} &8&l»'
+    - '&8 • &fVol Infini&7: &aOui'
+  other:
+    - '&7&l« &fTemps de vol de &6{PLAYER} &8&l»'
+    - '&8 • &fRestant&7: &e{DAYS}j&f, &e{HOURS}h&f, &e{MINUTES}m&f, &e{SECONDS}s'
+  other-unlimited:
+    - '&7&l« &fTemps de vol de &6{PLAYER} &8&l»'
+    - '&8 • &fVol Infini&7: &aOui'
+
+grant:
+  received: '&7&l« &a&lSH &8&l» &7Vous avez reçu &a{TIME} &7de temps de fly'
+  lost: '&7&l« &c&lSH &8&l» &7Vous avez perdu &c{TIME} &7de temps de fly'
+  decay: '&7&l« &e&lSH &8&l» &7Vous avez perdu &e{TIME} &7de fly en étant hors ligne'
+  # Retour envoyé à l''admin / à la console.
+  given-other: '&7&l« &a&lSH &8&l» &f{PLAYER} &aa reçu &f{TIME}&a.'
+  removed-other: '&7&l« &6&lSH &8&l» &f{PLAYER} &ca perdu &f{TIME}&c.'
+  set-other: '&7&l« &a&lSH &8&l» &7Temps de &f{PLAYER} &7défini sur &e{TIME}&7.'
+  given-all: '&7&l« &a&lSH &8&l» &aTous les joueurs ont reçu &f{TIME}&a.'
+  # Le joueur cible possède le fly illimité : le gain est ignoré.
+  target-unlimited: '&7&l« &6&lSH &8&l» &f{PLAYER} &7possède le fly illimité, le temps a été ignoré.'
+
+warning:
+  title: '&eFly'
+  subtitle: '&fFin dans &e{TIME}'
+
+action-bar: '&7Il vous reste &e{TIME}&7 de vol restant'
+action-bar-unlimited: '&7Fly &eillimité'
+
+boss-bar: '&7Il vous reste &e{TIME}&7 de vol restant'
+boss-bar-unlimited: '&fFly &8• &eIllimité'
+
+admin:
+  reloaded: '&7&l« &a&lSH &8&l» &7Configuration rechargée.'
+  migrated: '&7&l« &a&lSH &8&l» &7Import terminé : &e{AMOUNT} &7joueurs importés.'
+  migrate-missing: '&7&l« &c&lSH &8&l» &7Fichier introuvable : &f{ARG}'
+  help:
+    - '&8&l------&dSHTemp&fFly&8&l------'
+    - '&6/fly &7- Active / désactive le fly'
+    - '&6/fly time &7- Temps de vol restant'
+    - '&6/fly [on|off|time] <joueur> &7- Agit sur un autre joueur'
+    - '&6/shtempfly give <joueur> <temps> &7- Ajoute du temps'
+    - '&6/shtempfly remove <joueur> <temps> &7- Retire du temps'
+    - '&6/shtempfly set <joueur> <temps> &7- Définit le temps'
+    - '&6/shtempfly giveall <temps> &7- Ajoute du temps à tous'
+    - '&6/shtempfly check <joueur> &7- Consulte un joueur'
+    - '&6/shtempfly reload &7- Recharge la configuration'
+    - '&6/shtempfly migrate &7- Importe l''ancien TempFly'
+    - '&8Alias &6/tf &8et &6/tempfly &7(ancien plugin, ex: /tf give <joueur> <temps>)'
+
+error:
+  no-permission: '&7&l« &f&lSH &8&l» &fCommande inconnue, essayer autre chose.'
+  unknown-command: '&7&l« &f&lSH &8&l» &fCommande inconnue, essayer autre chose.'
+  player-only: '&7&l« &c&lSH &8&l» &7Cette commande est réservée aux joueurs.'
+  player-not-found: '&7&l« &c&lSH &8&l» &7Joueur introuvable : &f{ARG}'
+  invalid-time: '&7&l« &c&lSH &8&l» &7Durée invalide : &f{ARG} &7(ex: 30m, 2h, 1j12h)'
+  data-not-loaded: '&7&l« &c&lSH &8&l» &7Données en cours de chargement, réessaye.'

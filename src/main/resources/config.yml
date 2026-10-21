@@ -1,0 +1,237 @@
+##=====================================================================##
+#|                            SHTempFly                                |#
+#|          Fly temporaire + fly illimité (permission based)           |#
+#|                                                                     |#
+#|  Les messages sont dans messages.yml                                |#
+##=====================================================================##
+#
+# ---------------------------------------------------------------------
+#  COMMANDES
+# ---------------------------------------------------------------------
+#  /fly                          Active / désactive le fly (illimité uniquement)
+#  /fly on | /fly off            Force l'état plutôt que de basculer
+#  /fly time                     Affiche le temps de vol restant
+#  Alias : /tf  /tfly  /tempfly
+#
+#  /fly <joueur>                 Bascule le fly d'un autre joueur
+#  /fly on|off <joueur>          Force le fly d'un autre joueur
+#  /fly time <joueur>            Affiche le temps d'un autre joueur
+#  (permission shtempfly.fly.others — passe outre temporary-can-toggle)
+#
+#  /shtempfly give <joueur> <temps>     Ajoute du temps       (alias : add)
+#  /shtempfly remove <joueur> <temps>   Retire du temps       (alias : take)
+#  /shtempfly set <joueur> <temps>      Définit le temps
+#  /shtempfly giveall <temps>           Ajoute du temps à tous (alias : addall)
+#  /shtempfly check <joueur>            Consulte un joueur    (alias : look)
+#  /shtempfly reload                    Recharge config + messages
+#  /shtempfly migrate                   Importe l'ancien TempFly (alias : import)
+#  Alias : /shtf  /flyadmin
+#
+#  Les sous-commandes d'administration marchent aussi sur /fly et ses alias
+#  (compatibilité ancien plugin) : "/tf give <joueur> <temps>" fonctionne.
+#  Formats de durée acceptés : 30m · 2h · 1j12h · 3600 (secondes) · "30 minutes"
+#  Unités : s/sec/seconde(s) · m/min/minute(s) · h/heure(s) · j/jour(s)
+#
+# ---------------------------------------------------------------------
+#  PERMISSIONS
+# ---------------------------------------------------------------------
+#  shtempfly.fly.unlimited   Fly illimité, sans timer, avec activation/désactivation
+#                            (liste modifiable dans fly.unlimited-permissions)
+#  shtempfly.fly.others      Active / désactive le fly d'un autre joueur
+#  shtempfly.bypass          Ignore zones, îles et hauteur maximale, ne consomme rien
+#  shtempfly.admin           Accès à /shtempfly et aux sous-commandes de /fly
+#
+#  Aucune permission n'est nécessaire pour /fly : un joueur sans temps et sans
+#  permission illimitée se voit simplement refuser le vol.
+#
+# ---------------------------------------------------------------------
+#  PLACEHOLDERS (PlaceholderAPI)
+# ---------------------------------------------------------------------
+#  %shtempfly_time%          Temps restant formaté (ou "Infini")
+#  %shtempfly_time_raw%      Temps restant en secondes (-1 si illimité)
+#  %shtempfly_unlimited%     true / false
+#  %shtempfly_enabled%       true / false — le joueur a activé son fly
+#  %shtempfly_flying%        true / false — le joueur est en train de voler
+#  %shtempfly_can_fly%       true / false — le vol lui est autorisé ici
+#  %shtempfly_zone%          ALLOW / DENY / FREE / UNMANAGED
+# ---------------------------------------------------------------------
+
+general:
+  # Logs détaillés dans la console (uniquement pour diagnostiquer un souci).
+  debug: false
+  # Intervalle de sauvegarde automatique en base (secondes). -1 pour désactiver.
+  autosave-interval: 300
+  # Reprend /fly, /tf, /tfly, /tempfly et /shtempfly aux autres plugins qui les
+  # auraient enregistrés avant (Essentials, ancien TempFly...).
+  # L'autre plugin reste joignable via son préfixe, par exemple /essentials:fly.
+  override-commands: true
+
+fly:
+  # Permissions qui donnent le fly illimité (VIP+, VipElite...).
+  # Un joueur qui possède une de ces permissions :
+  #  - ne consomme jamais de temps
+  #  - peut activer / désactiver son fly librement
+  #  - ne peut plus gagner de temps temporaire (les gains sont ignorés silencieusement)
+  #  - son éventuel temps temporaire est gelé et conservé (restitué s'il perd la permission)
+  unlimited-permissions:
+    - 'shtempfly.fly.unlimited'
+
+  # Le fly des joueurs illimités est réactivé automatiquement à chaque connexion,
+  # même s'ils l'avaient désactivé avant de se déconnecter.
+  unlimited-reset-on-join: true
+
+  # Les joueurs en fly temporaire ne peuvent pas désactiver leur fly.
+  # Si true, /fly leur affiche simplement leur temps restant.
+  temporary-can-toggle: false
+
+  # Réactive le fly automatiquement dès que le joueur quitte une zone interdite.
+  auto-enable-on-zone-exit: true
+
+  # Hauteur maximale (Y) autorisée en vol. -1 pour aucune limite.
+  max-height: 340
+
+  # Vitesse de vol appliquée par le plugin (0.1 à 1.0). -1 pour ne pas y toucher.
+  speed: -1
+
+  # Empêche les dégâts de chute pendant X secondes après une perte de fly.
+  fall-damage-protection:
+    enabled: true
+    seconds: 8
+    # "Safe login" : protège aussi le joueur qui se reconnecte en plein ciel,
+    # le temps que ses données soient chargées et son vol rétabli.
+    # Remplace la permission essentials.fly.safelogin.
+    safe-login: true
+
+  # Le plugin n'intervient JAMAIS dans ces modes de jeu.
+  # Indispensable pour les minijeux : un joueur mort passe en spectateur et doit
+  # pouvoir voler même dans une zone interdite, sans consommer de temps.
+  ignored-gamemodes:
+    - 'SPECTATOR'
+    - 'CREATIVE'
+
+timer:
+  # Le temps s'écoule tant que le joueur est connecté, même au sol ou AFK.
+  # Il ne s'écoule jamais : en zone DENY, en zone FREE, en gamemode ignoré,
+  # ou pour un joueur avec le fly illimité.
+  drain-when-grounded: true
+
+  # Le temps continue de s'écouler dans les zones où le fly est interdit (mode DENY)
+  # et au-dessus de la hauteur maximale, en respectant les multiplicateurs ci-dessous.
+  # Mettre 0.0 sur le monde ou la région concernée pour mettre le compteur en pause.
+  # Les îles qui refusent le fly aux visiteurs ne consomment jamais de temps.
+  drain-in-denied-zones: true
+
+  # Multiplicateurs de consommation. 1.0 = normal, 0.1 = 10x plus lent, 0.0 = pause.
+  # Le multiplicateur du monde et celui de la région sont multipliés entre eux.
+  # Les modes FREE et UNMANAGED ne consomment jamais, quel que soit le multiplicateur.
+  drain-multiplier:
+    worlds:
+      Revent: 0.1
+      spawn: 0.1
+      arene: 0.1
+      Easter: 0.1
+    regions: {}
+
+  # Perte de temps pendant que le joueur est hors ligne.
+  # Calculée à la reconnexion, aucun impact sur les performances.
+  offline-decay:
+    enabled: true
+    # Toutes les X secondes hors ligne...
+    threshold-seconds: 5
+    # ...le joueur perd Y secondes de fly.
+    seconds-lost: 1
+
+zones:
+  # Mode appliqué à tout monde non listé ci-dessous.
+  # ALLOW     : fly autorisé (consomme du temps si le joueur n'est pas illimité)
+  # DENY      : fly interdit
+  # FREE      : fly gratuit pour tout le monde, sans temps requis ni consommé
+  # UNMANAGED : le plugin n'intervient jamais (ni activation ni désactivation)
+  default-mode: ALLOW
+
+  # Régions WorldGuard appliquées dans TOUS les mondes.
+  # Une région a toujours priorité sur le mode du monde.
+  # En cas de régions superposées, celle avec la priorité WorldGuard la plus haute gagne.
+  regions:
+    'spawn': DENY
+    'spawn-arene': DENY
+    'arene': DENY
+    '1vs1': DENY
+
+  # Configuration par monde. Les régions définies ici ont priorité sur la liste globale.
+  worlds:
+    arene:
+      mode: DENY
+    Halloween:
+      mode: DENY
+    Paques:
+      mode: DENY
+    # Mondes de minijeux : le vol est refusé à tout le monde.
+    # Les joueurs éliminés passent en spectateur et volent quand même,
+    # grâce à fly.ignored-gamemodes ci-dessus.
+    Revent:
+      mode: DENY
+    minijeux:
+      mode: UNMANAGED
+    SuperiorWorld:
+      mode: ALLOW
+      regions:
+        'spawn-nosit': ALLOW
+
+hooks:
+  worldguard:
+    # Si false, aucune région n'est prise en compte (léger gain de performance).
+    enabled: true
+
+  placeholderapi:
+    enabled: true
+
+  superiorskyblock:
+    # Utilise la permission d'île "FLY" native de SuperiorSkyblock2.
+    # Le bouton existe déjà dans SuperiorSkyblock2/menus/permissions.yml (entrée "fly")
+    # et les valeurs par défaut par rôle sont dans SuperiorSkyblock2/config.yml
+    # sous island-roles (guest.permissions, coop.permissions, ladder.*.permissions).
+    # Chaque chef d'île peut donc autoriser / interdire le fly par rôle,
+    # visiteurs compris, depuis le menu de permissions habituel.
+    #
+    # IMPORTANT : désactive la commande /is fly de SuperiorSkyblock2, sinon les deux
+    # plugins se battent pour activer / désactiver le vol.
+    enabled: true
+    # Nom de la permission d'île lue dans SuperiorSkyblock2.
+    privilege-name: 'FLY'
+    # Valeur utilisée si SuperiorSkyblock2 ne connaît pas cette permission.
+    default-when-unknown: true
+    # Si false, la permission d'île est ignorée pour les joueurs en fly illimité.
+    apply-to-unlimited: true
+
+display:
+  # Titre d'avertissement aux paliers de temps restant.
+  warning:
+    enabled: true
+    # Paliers en secondes.
+    seconds: [60, 10, 3, 2, 1]
+    fade-in: 5
+    stay: 30
+    fade-out: 5
+
+  # Barre d'action permanente avec le temps restant.
+  action-bar:
+    enabled: false
+    # Affiche aussi la barre aux joueurs en fly illimité.
+    show-unlimited: false
+
+  # Barre de boss avec le temps restant.
+  boss-bar:
+    enabled: true
+    color: 'YELLOW'
+    style: 'SEGMENTED_20'
+    # Durée (secondes) correspondant à une barre pleine.
+    full-at-seconds: 3600
+    show-unlimited: false
+
+migration:
+  # Import automatique de l'ancien plugin TempFly au premier démarrage.
+  # Cherche le fichier ci-dessous, importe les temps, puis ne le refait plus jamais.
+  # Peut aussi être relancé manuellement avec /shtempfly migrate.
+  auto-import: true
+  legacy-data-file: 'plugins/TempFly/data.yml'

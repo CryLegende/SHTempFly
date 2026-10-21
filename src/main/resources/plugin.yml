@@ -1,0 +1,39 @@
+name: SHTempFly
+version: '${project.version}'
+main: org.Cry_Legende.sHTempFly.SHTempFly
+api-version: '1.20'
+author: Cry_Legende
+description: Gestion du fly temporaire et illimité (zones, îles, minijeux).
+softdepend:
+  - WorldGuard
+  - PlaceholderAPI
+  - SuperiorSkyblock2
+libraries:
+  - org.xerial:sqlite-jdbc:3.44.1.0
+
+commands:
+  fly:
+    description: Active / désactive le fly, ou affiche le temps restant.
+    usage: /fly [on|off|time] [joueur]
+    # tf et tempfly reprennent les alias de l'ancien plugin : les commandes
+    # de type "/tf give <joueur> <temps>" configurées dans les plugins de
+    # votes / boxes / quêtes continuent donc de fonctionner sans rien changer.
+    aliases: [tf, tfly, tempfly]
+  shtempfly:
+    description: Commandes d'administration du fly.
+    usage: /shtempfly <give|set|remove|giveall|check|reload|migrate>
+    aliases: [shtf, flyadmin]
+
+permissions:
+  shtempfly.fly.unlimited:
+    description: Fly illimité, sans timer, avec activation / désactivation.
+    default: false
+  shtempfly.fly.others:
+    description: Active / désactive le fly d'un autre joueur.
+    default: op
+  shtempfly.bypass:
+    description: Ignore toutes les restrictions de zone.
+    default: op
+  shtempfly.admin:
+    description: Accès à /shtempfly et aux sous-commandes de /fly.
+    default: op
