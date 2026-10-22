@@ -40,10 +40,13 @@ Utilisé sur : **Opale**.
 
 ## Configuration
 
-Fichiers par défaut repris du serveur (secrets remplacés par `CHANGE_ME`) :
+Fichiers par défaut repris du serveur (secrets remplacés par `CHANGE_ME`). Cliquez sur un fichier pour l'ouvrir :
 
-- `config.yml`
-- `messages.yml`
+<pre>
+plugins/SHTempFly/
+├── <a href="src/main/resources/config.yml">config.yml</a>
+└── <a href="src/main/resources/messages.yml">messages.yml</a>
+</pre>
 
 ## Compilation
 
