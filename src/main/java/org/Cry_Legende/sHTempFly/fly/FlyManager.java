@@ -506,19 +506,53 @@ public final class FlyManager {
         }
     }
 
+    /**
+     * Le joueur pouvait-il voler juste avant ce verdict ? Au premier verdict (arrivée, /fly) il n'y a pas de
+     * précédent : on regarde alors s'il a du temps ou un vol illimité.
+     */
+    private boolean couldFlyBefore(FlyUser user, FlyResult previous) {
+        if (!user.flyEnabled()) {
+            return false;
+        }
+        if (previous == null) {
+            return user.unlimited() || user.time() > 0D;
+        }
+        return previous != FlyResult.DENIED_NO_TIME;
+    }
+
     private void notifyChange(Player player, FlyUser user, FlyResult result, FlyResult previous) {
         // Garde-fou general : un verdict qui va-et-vient (bord de zone, limite d'ile...)
         // ne doit jamais repeter le meme message plusieurs fois par seconde.
         if (!user.shouldNotify(result, NOTIFY_COOLDOWN_MS)) {
             return;
         }
+        // Un joueur sans temps de vol (ou qui a coupé son fly) ne perd rien en changeant de zone : on ne lui
+        // annonce donc ni refus ni fin de temps à chaque /spawn ou /is go.
+        boolean couldFly = couldFlyBefore(user, previous);
         switch (result) {
-            case DENIED_ZONE -> plugin.messages().send(player, "denied.zone");
-            case DENIED_HEIGHT -> plugin.messages().send(player, "denied.height");
-            case DENIED_ISLAND -> plugin.messages().send(player, "denied.island");
-            case DENIED_ACTIVITY -> plugin.messages().send(player, "denied.activity");
+            case DENIED_ZONE -> {
+                if (couldFly) {
+                    plugin.messages().send(player, "denied.zone");
+                }
+            }
+            case DENIED_HEIGHT -> {
+                if (couldFly) {
+                    plugin.messages().send(player, "denied.height");
+                }
+            }
+            case DENIED_ISLAND -> {
+                if (couldFly) {
+                    plugin.messages().send(player, "denied.island");
+                }
+            }
+            case DENIED_ACTIVITY -> {
+                if (couldFly) {
+                    plugin.messages().send(player, "denied.activity");
+                }
+            }
             case DENIED_NO_TIME -> {
-                if (previous != null) {
+                // Seule la fin du temps pendant un vol autorisé mérite le message
+                if (previous != null && previous.allowed()) {
                     plugin.messages().send(player, "fly.out-of-time");
                 }
             }
