@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -84,9 +85,30 @@ public final class FlyStorage {
                 }
             } catch (SQLException ex) {
                 plugin.getLogger().log(Level.SEVERE, "Echec du chargement de " + uuid, ex);
+                // Pas de joueur a 0 seconde : il serait sauvegarde a la deconnexion et effacerait son vrai temps
+                throw new CompletionException(ex);
             }
             return new FlyUser(uuid, name, 0D, true, 0L);
         }, io);
+    }
+
+    /**
+     * Met a jour la derniere connexion sans toucher au temps : un don hors ligne a pu etre ecrit
+     * depuis la lecture (joueur deconnecte avant la fin du chargement).
+     */
+    public void touchLastSeen(UUID uuid, String name, long lastSeen) {
+        io.execute(() -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO fly_users (uuid, name, last_seen) VALUES (?, ?, ?) "
+                    + "ON CONFLICT(uuid) DO UPDATE SET name = excluded.name, last_seen = excluded.last_seen")) {
+                statement.setString(1, uuid.toString());
+                statement.setString(2, name);
+                statement.setLong(3, lastSeen);
+                statement.executeUpdate();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.SEVERE, "Echec de la sauvegarde de " + uuid, ex);
+            }
+        });
     }
 
     public void saveAsync(FlyUser user) {

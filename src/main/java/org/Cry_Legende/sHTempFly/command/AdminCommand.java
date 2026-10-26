@@ -93,14 +93,10 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
         Player online = Bukkit.getPlayerExact(args[1]);
         if (online != null) {
-            FlyUser user = plugin.flyManager().user(online.getUniqueId());
-            if (user == null) {
-                plugin.messages().send(sender, "error.data-not-loaded");
-                return;
-            }
+            // Donnees encore en chargement (recompense donnee a la connexion) : le changement attend leur arrivee
             boolean applied = operation == Operation.SET
-                ? plugin.flyManager().setTime(online, seconds)
-                : plugin.flyManager().addTime(online, amount, true);
+                ? plugin.flyManager().grant(online, seconds, true, false)
+                : plugin.flyManager().grant(online, amount, false, true);
             if (!applied) {
                 plugin.messages().send(sender, "grant.target-unlimited", "{PLAYER}", online.getName());
                 return;
@@ -137,7 +133,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
             return;
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
-            plugin.flyManager().addTime(player, seconds, true);
+            plugin.flyManager().grant(player, seconds, false, true);
         }
         plugin.messages().send(sender, "grant.given-all", plugin.messages().timePlaceholders(seconds));
     }

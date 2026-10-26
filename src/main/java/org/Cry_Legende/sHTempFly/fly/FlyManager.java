@@ -42,6 +42,15 @@ public final class FlyManager {
      * Immunite de chute accordee a la connexion, avant meme que les donnees soient chargees.
      */
     private final Map<UUID, Long> joinGrace = new ConcurrentHashMap<>();
+    /**
+     * Temps donne, retire ou fixe a un joueur connecte dont les donnees sont encore en chargement
+     * (recompense de vote a la connexion...) : applique a leur arrivee, ou ecrit en base s'il part avant.
+     * Il etait refuse ("donnees en cours de chargement") et donc perdu pour les commandes de recompense.
+     */
+    private final Map<UUID, List<PendingGrant>> pendingGrants = new ConcurrentHashMap<>();
+
+    private record PendingGrant(String name, double amount, boolean absolute) {
+    }
 
     private BukkitTask tickTask;
     private BukkitTask saveTask;
@@ -86,6 +95,8 @@ public final class FlyManager {
         }
         long now = System.currentTimeMillis();
         users.values().forEach(user -> user.lastSeen(now));
+        pendingGrants.forEach(this::flushPending);
+        pendingGrants.clear();
         plugin.storage().saveAllNow(new ArrayList<>(users.values()));
         users.clear();
         joinGrace.clear();
@@ -117,9 +128,15 @@ public final class FlyManager {
             joinGrace.put(uuid, System.currentTimeMillis() + config.fallProtectionSeconds() * 1000L);
         }
         plugin.storage().load(uuid, player.getName()).thenAccept(user -> Bukkit.getScheduler().runTask(plugin, () -> {
-            if (!player.isOnline()) {
-                user.lastSeen(System.currentTimeMillis());
-                plugin.storage().saveAsync(user);
+            // isOnline() vaut aussi true pour l'objet d'une session terminee si le joueur s'est deja reconnecte :
+            // ces donnees-la sont perimees, le chargement de la nouvelle session suit.
+            Player current = Bukkit.getPlayer(uuid);
+            if (current != player) {
+                if (current == null) {
+                    // Seule la derniere connexion est ecrite : reecrire le temps lu ici effacerait
+                    // un don hors ligne enregistre entre-temps.
+                    plugin.storage().touchLastSeen(uuid, player.getName(), System.currentTimeMillis());
+                }
                 return;
             }
             user.name(player.getName());
@@ -141,6 +158,16 @@ public final class FlyManager {
             if (grace != null && !player.getAllowFlight() && grace > user.fallGraceUntil()) {
                 user.fallGraceUntil(grace);
             }
+            List<PendingGrant> grants = pendingGrants.remove(uuid);
+            if (grants != null) {
+                for (PendingGrant grant : grants) {
+                    if (grant.absolute()) {
+                        setTime(player, grant.amount());
+                    } else {
+                        addTime(player, grant.amount(), true);
+                    }
+                }
+            }
         }));
     }
 
@@ -149,9 +176,35 @@ public final class FlyManager {
         FlyUser user = users.remove(player.getUniqueId());
         plugin.display().remove(player);
         player.removeMetadata(FLIGHT_METADATA, plugin);
+        List<PendingGrant> grants = pendingGrants.remove(player.getUniqueId());
+        if (grants != null) {
+            // Donnees jamais chargees : les dons attendus partent directement en base
+            flushPending(player.getUniqueId(), grants);
+        }
         if (user != null) {
             user.lastSeen(System.currentTimeMillis());
             plugin.storage().saveAsync(user);
+        }
+    }
+
+    /**
+     * Ajoute (ou retire si negatif) du temps, ou le fixe si {@code absolute}, a un joueur connecte.
+     * Si ses donnees ne sont pas encore chargees, le changement attend leur arrivee au lieu d'etre perdu.
+     *
+     * @return false si le gain a ete ignore parce que le joueur possede le fly illimite.
+     */
+    public boolean grant(Player player, double amount, boolean absolute, boolean notify) {
+        if (users.get(player.getUniqueId()) == null) {
+            pendingGrants.computeIfAbsent(player.getUniqueId(), id -> new ArrayList<>())
+                .add(new PendingGrant(player.getName(), amount, absolute));
+            return true;
+        }
+        return absolute ? setTime(player, amount) : addTime(player, amount, notify);
+    }
+
+    private void flushPending(UUID uuid, List<PendingGrant> grants) {
+        for (PendingGrant grant : grants) {
+            plugin.storage().addTimeOffline(uuid, grant.name(), grant.amount(), grant.absolute());
         }
     }
 
