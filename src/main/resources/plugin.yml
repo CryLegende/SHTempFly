@@ -35,5 +35,10 @@ permissions:
     description: Ignore toutes les restrictions de zone.
     default: op
   shtempfly.admin:
-    description: Accès à /shtempfly et aux sous-commandes de /fly.
+    description: Accès à /shtempfly et aux sous-commandes de /fly (inclut shtempfly.admin.check).
+    default: op
+    children:
+      shtempfly.admin.check: true
+  shtempfly.admin.check:
+    description: Consulte le temps de fly d'un joueur (/shtempfly check, /tfly check) sans les autres commandes d'administration.
     default: op

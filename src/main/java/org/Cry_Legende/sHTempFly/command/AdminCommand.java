@@ -40,21 +40,50 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
         return argument != null && ALL_SUB_COMMANDS.contains(argument.toLowerCase(Locale.ROOT));
     }
 
+    private static final String ADMIN_PERMISSION = "shtempfly.admin";
+    /** Donne uniquement "check" : pour les modérateurs, sans le reste de l'administration. */
+    private static final String CHECK_PERMISSION = "shtempfly.admin.check";
+
+    private static boolean isCheck(String subCommand) {
+        String sub = subCommand.toLowerCase(Locale.ROOT);
+        return sub.equals("check") || sub.equals("look");
+    }
+
+    /**
+     * True si l'expéditeur peut utiliser cette sous-commande : shtempfly.admin pour toutes,
+     * shtempfly.admin.check pour check seulement.
+     */
+    public static boolean canUse(CommandSender sender, String subCommand) {
+        if (sender.hasPermission(ADMIN_PERMISSION)) {
+            return true;
+        }
+        return subCommand != null && isCheck(subCommand) && sender.hasPermission(CHECK_PERMISSION);
+    }
+
     private final SHTempFly plugin;
 
     public AdminCommand(SHTempFly plugin) {
         this.plugin = plugin;
     }
 
+    private void help(CommandSender sender) {
+        plugin.messages().sendList(sender, sender.hasPermission(ADMIN_PERMISSION) ? "admin.help" : "admin.help-check");
+    }
+
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("shtempfly.admin")) {
+        if (!sender.hasPermission(ADMIN_PERMISSION) && !sender.hasPermission(CHECK_PERMISSION)) {
             plugin.messages().send(sender, "error.no-permission");
             return true;
         }
         if (args.length == 0) {
-            plugin.messages().sendList(sender, "admin.help");
+            help(sender);
+            return true;
+        }
+        if (!canUse(sender, args[0])) {
+            // check seul : les autres sous-commandes restent invisibles, comme pour un joueur sans droit
+            plugin.messages().send(sender, "error.no-permission");
             return true;
         }
 
@@ -69,7 +98,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
                 plugin.messages().send(sender, "admin.reloaded");
             }
             case "migrate", "import" -> plugin.runMigration(sender);
-            default -> plugin.messages().sendList(sender, "admin.help");
+            default -> help(sender);
         }
         return true;
     }
@@ -140,7 +169,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void check(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            plugin.messages().sendList(sender, "admin.help");
+            help(sender);
             return;
         }
         Messages messages = plugin.messages();
@@ -199,12 +228,17 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("shtempfly.admin")) {
+        if (!sender.hasPermission(ADMIN_PERMISSION) && !sender.hasPermission(CHECK_PERMISSION)) {
             return List.of();
         }
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            return SUB_COMMANDS.stream().filter(value -> value.startsWith(prefix)).toList();
+            return SUB_COMMANDS.stream()
+                .filter(value -> value.startsWith(prefix) && canUse(sender, value))
+                .toList();
+        }
+        if (args.length >= 2 && !canUse(sender, args[0])) {
+            return List.of();
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase(Locale.ROOT);

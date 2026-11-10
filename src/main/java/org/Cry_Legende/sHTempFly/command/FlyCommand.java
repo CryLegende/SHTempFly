@@ -41,7 +41,7 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
         // sous-commandes d'administration sont acceptees directement sur /fly et ses alias,
         // pour ne rien avoir a changer dans les plugins de votes / boxes / quetes.
         if (args.length > 0 && AdminCommand.isAdminSubCommand(args[0])
-            && sender.hasPermission("shtempfly.admin")) {
+            && AdminCommand.canUse(sender, args[0])) {
             return admin.onCommand(sender, command, label, args);
         }
         if (args.length > 2) {
@@ -165,8 +165,11 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
             List<String> options = new ArrayList<>(List.of("on", "off", "time"));
-            if (isAdmin) {
-                options.addAll(AdminCommand.SUB_COMMANDS);
+            // shtempfly.admin.check ne montre que "check", pas les autres sous-commandes
+            for (String sub : AdminCommand.SUB_COMMANDS) {
+                if (AdminCommand.canUse(sender, sub)) {
+                    options.add(sub);
+                }
             }
             if (canOthers) {
                 options.addAll(playerNames());
@@ -174,7 +177,7 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
             return options.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
         }
         if (args.length == 2) {
-            if (isAdmin && AdminCommand.isAdminSubCommand(args[0])) {
+            if (AdminCommand.isAdminSubCommand(args[0]) && AdminCommand.canUse(sender, args[0])) {
                 return admin.onTabComplete(sender, command, label, args);
             }
             if (canOthers && parseAction(args[0]) != null) {
@@ -185,7 +188,7 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
             }
             return List.of();
         }
-        return isAdmin && args.length > 2 && AdminCommand.isAdminSubCommand(args[0])
+        return args.length > 2 && AdminCommand.isAdminSubCommand(args[0]) && AdminCommand.canUse(sender, args[0])
             ? admin.onTabComplete(sender, command, label, args)
             : List.of();
     }

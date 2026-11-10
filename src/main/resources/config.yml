@@ -40,6 +40,8 @@
 #  shtempfly.fly.others      Active / désactive le fly d'un autre joueur
 #  shtempfly.bypass          Ignore zones, îles et hauteur maximale, ne consomme rien
 #  shtempfly.admin           Accès à /shtempfly et aux sous-commandes de /fly
+#  shtempfly.admin.check     Seulement "check" (/tfly check <joueur>), pour les modérateurs ;
+#                            inclus dans shtempfly.admin
 #
 #  Aucune permission n'est nécessaire pour /fly : un joueur sans temps et sans
 #  permission illimitée se voit simplement refuser le vol.

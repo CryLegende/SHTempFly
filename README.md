@@ -36,7 +36,8 @@ Utilisé sur : **Opale**.
 | `shtempfly.fly.unlimited` | Fly illimité, sans timer, avec activation / désactivation. | `false` |
 | `shtempfly.fly.others` | Active / désactive le fly d'un autre joueur. | `op` |
 | `shtempfly.bypass` | Ignore toutes les restrictions de zone. | `op` |
-| `shtempfly.admin` | Accès à /shtempfly et aux sous-commandes de /fly. | `op` |
+| `shtempfly.admin` | Accès à /shtempfly et aux sous-commandes de /fly (inclut `shtempfly.admin.check`). | `op` |
+| `shtempfly.admin.check` | Seulement `check` (`/tfly check <joueur>`), pour les modérateurs. | `op` |
 
 ## Configuration
 

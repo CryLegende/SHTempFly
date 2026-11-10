@@ -100,6 +100,11 @@ admin:
     - '&6/shtempfly reload &7- Recharge la configuration'
     - '&6/shtempfly migrate &7- Importe l''ancien TempFly'
     - '&8Alias &6/tf &8et &6/tempfly &7(ancien plugin, ex: /tf give <joueur> <temps>)'
+  # Aide pour shtempfly.admin.check : seule la consultation d'un joueur
+  help-check:
+    - '&8&l------&dSHTemp&fFly&8&l------'
+    - '&6/shtempfly check <joueur> &7- Consulte le temps de fly d''un joueur'
+    - '&8Alias &6/tfly check <joueur>'
 
 error:
   no-permission: '&7&l« &f&lSH &8&l» &fCommande inconnue, essayer autre chose.'
