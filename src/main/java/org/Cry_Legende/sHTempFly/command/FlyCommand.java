@@ -3,6 +3,8 @@ package org.Cry_Legende.sHTempFly.command;
 import org.Cry_Legende.sHTempFly.SHTempFly;
 import org.Cry_Legende.sHTempFly.config.Messages;
 import org.Cry_Legende.sHTempFly.data.FlyUser;
+import org.Cry_Legende.sHTempFly.network.NetworkFlyStorage;
+import org.Cry_Legende.sHTempFly.network.NetworkLink;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -14,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * /fly [on|off|time] [joueur]
@@ -112,6 +115,10 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
         }
         Player target = Bukkit.getPlayerExact(targetName);
         if (target == null) {
+            NetworkFlyStorage network = plugin.network();
+            if (network != null && forwardOther(sender, network, action, targetName)) {
+                return true;
+            }
             messages.send(sender, "error.player-not-found", "{ARG}", targetName);
             return true;
         }
@@ -138,6 +145,41 @@ public final class FlyCommand implements CommandExecutor, TabCompleter {
             messages.send(sender, state ? "fly.enabled-other" : "fly.disabled-other",
                 "{PLAYER}", target.getName());
         }
+        return true;
+    }
+
+    /**
+     * Mode réseau : "/fly [on|off|time] <joueur>" visant un joueur d'un autre serveur. Le temps se lit en base ;
+     * l'activation ou la désactivation est exécutée là où se trouve le joueur.
+     *
+     * @return vrai si le joueur est sur un autre serveur
+     */
+    private boolean forwardOther(CommandSender sender, NetworkFlyStorage network, Action action, String targetName) {
+        Optional<NetworkLink.Remote> found = network.remote(targetName);
+        if (found.isEmpty()) {
+            return false;
+        }
+        NetworkLink.Remote remote = found.get();
+        Messages messages = plugin.messages();
+        if (action == Action.BALANCE) {
+            plugin.storage().readTime(remote.uuid()).thenAccept(time ->
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (time == null) {
+                        messages.send(sender, "error.database");
+                        return;
+                    }
+                    messages.sendList(sender, "balance.other",
+                        Messages.merge(messages.timePlaceholders((long) Math.floor(time)), "{PLAYER}", remote.name()));
+                }));
+            return true;
+        }
+        String state = switch (action) {
+            case ENABLE -> "on ";
+            case DISABLE -> "off ";
+            default -> "";
+        };
+        network.link().runFor(remote.name(), "fly " + state + remote.name());
+        messages.send(sender, "admin.forwarded", "{PLAYER}", remote.name(), "{SERVER}", remote.server());
         return true;
     }
 

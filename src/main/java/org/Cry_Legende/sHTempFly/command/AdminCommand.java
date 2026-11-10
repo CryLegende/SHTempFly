@@ -3,6 +3,8 @@ package org.Cry_Legende.sHTempFly.command;
 import org.Cry_Legende.sHTempFly.SHTempFly;
 import org.Cry_Legende.sHTempFly.config.Messages;
 import org.Cry_Legende.sHTempFly.data.FlyUser;
+import org.Cry_Legende.sHTempFly.network.NetworkFlyStorage;
+import org.Cry_Legende.sHTempFly.network.NetworkLink;
 import org.Cry_Legende.sHTempFly.util.TimeUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -16,15 +18,23 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * /shtempfly give|remove|set|giveall|check|reload|migrate
+ * /shtempfly give|remove|set|giveall|check|reload|migrate (et netimport avec SHNetwork)
  */
 public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     public static final List<String> SUB_COMMANDS =
         List.of("give", "remove", "set", "giveall", "check", "reload", "migrate");
+
+    /**
+     * Mode réseau : netimport copie le SQLite local dans la base partagée.
+     */
+    private static final List<String> NETWORK_SUB_COMMANDS =
+        List.of("give", "remove", "set", "giveall", "check", "reload", "migrate", "netimport");
 
     /**
      * Tous les mots reconnus, alias de l'ancien TempFly compris.
@@ -68,6 +78,9 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void help(CommandSender sender) {
         plugin.messages().sendList(sender, sender.hasPermission(ADMIN_PERMISSION) ? "admin.help" : "admin.help-check");
+        if (plugin.network() != null && sender.hasPermission(ADMIN_PERMISSION)) {
+            plugin.messages().sendList(sender, "admin.help-network");
+        }
     }
 
     @Override
@@ -98,6 +111,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
                 plugin.messages().send(sender, "admin.reloaded");
             }
             case "migrate", "import" -> plugin.runMigration(sender);
+            case "netimport" -> plugin.runNetworkImport(sender);
             default -> help(sender);
         }
         return true;
@@ -131,23 +145,74 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
                 return;
             }
             feedback(sender, operation, online.getName(), seconds);
+            plugin.flyManager().writeThrough(online);
+            return;
+        }
+
+        NetworkFlyStorage network = plugin.network();
+        if (network != null && forward(sender, network, operation, args[1], raw)) {
             return;
         }
 
         OfflinePlayer offline = resolveOffline(args[1]);
-        if (offline == null) {
+        if (offline != null) {
+            applyOffline(sender, operation, offline.getUniqueId(), offline.getName(), args[1], seconds, amount);
+            return;
+        }
+        if (network == null) {
             plugin.messages().send(sender, "error.player-not-found", "{ARG}", args[1]);
             return;
         }
-        plugin.storage().addTimeOffline(offline.getUniqueId(), offline.getName(),
+        // Un joueur jamais venu sur ce serveur n'est pas dans son cache : la base partagée le connaît par son pseudo
+        network.findByName(args[1]).whenComplete((known, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (error != null) {
+                plugin.messages().send(sender, "error.database");
+            } else if (known.isEmpty()) {
+                plugin.messages().send(sender, "error.player-not-found", "{ARG}", args[1]);
+            } else {
+                applyOffline(sender, operation, known.get().uuid(), known.get().name(), args[1], seconds, amount);
+            }
+        }));
+    }
+
+    /**
+     * Modification d'un joueur connecté nulle part. Mode réseau : ajout atomique en base partagée.
+     */
+    private void applyOffline(CommandSender sender, Operation operation, UUID uuid, String storedName, String shownName,
+                              long seconds, double amount) {
+        plugin.storage().addTimeOffline(uuid, storedName,
                 operation == Operation.SET ? seconds : amount, operation == Operation.SET)
             .thenAccept(applied -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (applied) {
-                    feedback(sender, operation, args[1], seconds);
+                if (applied == null) {
+                    plugin.messages().send(sender, "error.database");
+                } else if (applied) {
+                    feedback(sender, operation, shownName, seconds);
                 } else {
-                    plugin.messages().send(sender, "grant.target-unlimited", "{PLAYER}", args[1]);
+                    plugin.messages().send(sender, "grant.target-unlimited", "{PLAYER}", shownName);
                 }
             }));
+    }
+
+    /**
+     * Mode réseau : le joueur est connecté sur un autre serveur, la commande y est exécutée (là où se trouve son temps
+     * en mémoire), une seule fois.
+     *
+     * @return vrai si le joueur est sur un autre serveur (la commande lui est transmise)
+     */
+    private boolean forward(CommandSender sender, NetworkFlyStorage network, Operation operation, String target, String time) {
+        Optional<NetworkLink.Remote> remote = network.remote(target);
+        if (remote.isEmpty()) {
+            return false;
+        }
+        String sub = switch (operation) {
+            case ADD -> "give";
+            case REMOVE -> "remove";
+            case SET -> "set";
+        };
+        NetworkLink.Remote player = remote.get();
+        network.link().runFor(player.name(), "shtempfly " + sub + " " + player.name() + " " + time);
+        plugin.messages().send(sender, "admin.forwarded", "{PLAYER}", player.name(), "{SERVER}", player.server());
+        return true;
     }
 
     private void giveAll(CommandSender sender, String[] args) {
@@ -163,6 +228,17 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
             plugin.flyManager().grant(player, seconds, false, true);
+        }
+        NetworkFlyStorage network = plugin.network();
+        if (network != null) {
+            // les joueurs des autres serveurs reçoivent le temps là où ils sont
+            plugin.flyManager().saveDirty();
+            NetworkLink link = network.link();
+            for (NetworkLink.Remote remote : link.online()) {
+                if (!remote.server().equalsIgnoreCase(link.serverName())) {
+                    link.runFor(remote.name(), "shtempfly give " + remote.name() + " " + raw);
+                }
+            }
         }
         plugin.messages().send(sender, "grant.given-all", plugin.messages().timePlaceholders(seconds));
     }
@@ -185,15 +261,47 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        NetworkFlyStorage network = plugin.network();
+        if (network != null) {
+            // joueur d'un autre serveur : la base fait foi (son temps y est écrit à chaque sauvegarde automatique)
+            Optional<NetworkLink.Remote> remote = network.remote(args[1]);
+            if (remote.isPresent()) {
+                showTime(sender, remote.get().uuid(), remote.get().name());
+                return;
+            }
+        }
+
         OfflinePlayer offline = resolveOffline(args[1]);
-        if (offline == null) {
+        if (offline != null) {
+            showTime(sender, offline.getUniqueId(), args[1]);
+            return;
+        }
+        if (network == null) {
             messages.send(sender, "error.player-not-found", "{ARG}", args[1]);
             return;
         }
-        plugin.storage().readTime(offline.getUniqueId()).thenAccept(time ->
-            Bukkit.getScheduler().runTask(plugin, () -> messages.sendList(sender, "balance.other",
-                Messages.merge(messages.timePlaceholders((long) Math.floor(time)),
-                    "{PLAYER}", args[1]))));
+        network.findByName(args[1]).whenComplete((known, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (error != null) {
+                messages.send(sender, "error.database");
+            } else if (known.isEmpty()) {
+                messages.send(sender, "error.player-not-found", "{ARG}", args[1]);
+            } else {
+                showTime(sender, known.get().uuid(), args[1]);
+            }
+        }));
+    }
+
+    private void showTime(CommandSender sender, UUID uuid, String shownName) {
+        Messages messages = plugin.messages();
+        plugin.storage().readTime(uuid).thenAccept(time ->
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (time == null) {
+                    messages.send(sender, "error.database");
+                    return;
+                }
+                messages.sendList(sender, "balance.other",
+                    Messages.merge(messages.timePlaceholders((long) Math.floor(time)), "{PLAYER}", shownName));
+            }));
     }
 
     private void feedback(CommandSender sender, Operation operation, String target, long seconds) {
@@ -233,7 +341,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            return SUB_COMMANDS.stream()
+            return (plugin.network() != null ? NETWORK_SUB_COMMANDS : SUB_COMMANDS).stream()
                 .filter(value -> value.startsWith(prefix) && canUse(sender, value))
                 .toList();
         }

@@ -105,6 +105,15 @@ admin:
     - '&8&l------&dSHTemp&fFly&8&l------'
     - '&6/shtempfly check <joueur> &7- Consulte le temps de fly d''un joueur'
     - '&8Alias &6/tfly check <joueur>'
+  # Mode réseau (SHNetwork) : lignes ajoutées à l'aide de shtempfly.admin
+  help-network:
+    - '&6/shtempfly netimport &7- Copie les joueurs du SQLite local dans la base du réseau'
+  # Mode réseau : commande transmise au serveur où se trouve le joueur
+  forwarded: '&7&l« &e&lSH &8&l» &f{PLAYER} &7est sur le serveur &e{SERVER}&7 : la commande lui a été &etransmise&7.'
+  network-only: '&7&l« &c&lSH &8&l» &7Cette commande demande le &cmode réseau &7(SHNetwork installé et base joignable).'
+  netimport-done: '&7&l« &a&lSH &8&l» &7Importation terminée : &e{AMOUNT} &7joueur(s) ajouté(s), &e{PRESENT} &7déjà présent(s).'
+  netimport-missing: '&7&l« &c&lSH &8&l» &7Fichier introuvable : &f{ARG}'
+  netimport-failed: '&7&l« &c&lSH &8&l» &7L''importation a échoué, &cvérifiez la console&7.'
 
 error:
   no-permission: '&7&l« &f&lSH &8&l» &fCommande inconnue, essayer autre chose.'
@@ -113,3 +122,5 @@ error:
   player-not-found: '&7&l« &c&lSH &8&l» &7Joueur introuvable : &f{ARG}'
   invalid-time: '&7&l« &c&lSH &8&l» &7Durée invalide : &f{ARG} &7(ex: 30m, 2h, 1j12h)'
   data-not-loaded: '&7&l« &c&lSH &8&l» &7Données en cours de chargement, réessaye.'
+  # Mode réseau
+  database: '&7&l« &c&lSH &8&l» &7La base du réseau ne répond pas.'

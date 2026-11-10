@@ -17,6 +17,8 @@ public final class FlyUser {
     private long lastSeen;
 
     private boolean dirty;
+    // Mode réseau : part du temps déjà reçue par la base partagée (voir takeUnsyncedTime)
+    private double syncedTime;
 
     private boolean unlimited;
     private FlyResult lastResult;
@@ -69,6 +71,31 @@ public final class FlyUser {
         time = Math.max(0D, time + amount);
         dirty = true;
         return time - before;
+    }
+
+    /**
+     * Mode réseau : fixe le temps que la base connaît pour ce joueur (valeur lue à son arrivée).
+     */
+    public synchronized void syncedTime(double syncedTime) {
+        this.syncedTime = syncedTime;
+    }
+
+    /**
+     * Mode réseau : temps gagné ou consommé ici depuis la dernière écriture en base. La base reçoit cette différence
+     * ({@code time = time + ?}) et non la valeur entière : un temps ajouté entre-temps par un autre serveur n'est
+     * jamais écrasé. À appeler une seule fois par écriture, sur le fil principal.
+     */
+    public synchronized double takeUnsyncedTime() {
+        double delta = time - syncedTime;
+        syncedTime = time;
+        return delta;
+    }
+
+    /**
+     * Mode réseau : l'écriture de {@link #takeUnsyncedTime()} a échoué, la différence sera renvoyée à la suivante.
+     */
+    public synchronized void restoreUnsyncedTime(double delta) {
+        syncedTime -= delta;
     }
 
     public boolean flyEnabled() {

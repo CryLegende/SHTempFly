@@ -25,7 +25,12 @@
 #  /shtempfly check <joueur>            Consulte un joueur    (alias : look)
 #  /shtempfly reload                    Recharge config + messages
 #  /shtempfly migrate                   Importe l'ancien TempFly (alias : import)
+#  /shtempfly netimport                 Avec SHNetwork : copie les joueurs de data.db (SQLite de ce serveur) dans la
+#                                       base du réseau, sans rien écraser (voir la section 'reseau' en bas du fichier)
 #  Alias : /shtf  /flyadmin
+#
+#  Avec SHNetwork, give/remove/set et "/fly [on|off|time] <joueur>" visant un joueur d'un autre serveur lui sont
+#  transmis ; giveall touche tous les joueurs du réseau ; un joueur connecté nulle part se modifie en base.
 #
 #  Les sous-commandes d'administration marchent aussi sur /fly et ses alias
 #  (compatibilité ancien plugin) : "/tf give <joueur> <temps>" fonctionne.
@@ -237,3 +242,22 @@ migration:
   # Peut aussi être relancé manuellement avec /shtempfly migrate.
   auto-import: true
   legacy-data-file: 'plugins/TempFly/data.yml'
+
+# Mode réseau. Actif seulement si SHNetwork est installé et 'actif' vaut true : le temps de vol, le fly activé et le
+# statut illimité de chaque joueur sont alors dans la base partagée (table shtempfly) au lieu de data.db. Ils sont lus à
+# la connexion du joueur, une fois que l'autre serveur a fini de le sauvegarder, et écrits à chaque sauvegarde automatique
+# (general.autosave-interval), après chaque commande d'administration et au départ du joueur. Le temps consommé en vol
+# s'ajoute à la base par différence : un temps donné entre-temps par un autre serveur n'est jamais écrasé.
+# Les joueurs de data.db se copient une fois avec /shtempfly netimport.
+# Sans SHNetwork, rien de ceci n'est utilisé. Demande un redémarrage.
+reseau:
+  actif: true
+  # Durée maximale, en secondes, pendant laquelle on attend que l'autre serveur ait fini de sauvegarder
+  # le joueur avant de lire son temps
+  attente-max-secondes: 10
+  base-de-donnees:
+    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
+    utilisateur: shtempfly
+    mot-de-passe: CHANGE_ME
+    # Délai maximal de connexion et de réponse de la base, en millisecondes
+    delai-ms: 3000

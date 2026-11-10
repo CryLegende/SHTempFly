@@ -27,7 +27,7 @@ import java.util.logging.Level;
  * Persistance SQLite. Toutes les I/O passent par un thread dedie ;
  * le thread principal n'attend jamais, sauf a l'arret du serveur.
  */
-public final class FlyStorage {
+public final class FlyStorage implements FlyStore {
 
     private final SHTempFly plugin;
     private final ExecutorService io = Executors.newSingleThreadExecutor(runnable -> {
@@ -68,6 +68,34 @@ public final class FlyStorage {
         }
     }
 
+    /**
+     * Lit tous les joueurs d'un data.db, sans le garder ouvert (importation vers la base partagée du mode réseau).
+     */
+    public static List<FlyRow> readAll(File file) throws SQLException {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException ex) {
+            throw new SQLException("Driver SQLite introuvable", ex);
+        }
+        List<FlyRow> rows = new ArrayList<>();
+        try (Connection reader = DriverManager.getConnection("jdbc:sqlite:" + file);
+             Statement statement = reader.createStatement();
+             ResultSet result = statement.executeQuery(
+                 "SELECT uuid, name, time, fly_enabled, last_seen, unlimited FROM fly_users")) {
+            while (result.next()) {
+                try {
+                    rows.add(new FlyRow(UUID.fromString(result.getString(1)), result.getString(2),
+                        Math.max(0D, result.getDouble(3)), result.getInt(4) != 0, result.getLong(5),
+                        result.getInt(6) != 0));
+                } catch (IllegalArgumentException ignored) {
+                    // uuid illisible : ligne ignorée
+                }
+            }
+        }
+        return rows;
+    }
+
+    @Override
     public CompletableFuture<FlyUser> load(UUID uuid, String name) {
         return CompletableFuture.supplyAsync(() -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -96,6 +124,7 @@ public final class FlyStorage {
      * Met a jour la derniere connexion sans toucher au temps : un don hors ligne a pu etre ecrit
      * depuis la lecture (joueur deconnecte avant la fin du chargement).
      */
+    @Override
     public void touchLastSeen(UUID uuid, String name, long lastSeen) {
         io.execute(() -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -111,15 +140,17 @@ public final class FlyStorage {
         });
     }
 
-    public void saveAsync(FlyUser user) {
+    @Override
+    public CompletableFuture<Void> saveAsync(FlyUser user) {
         FlyUser snapshot = copy(user);
         user.clean();
-        io.execute(() -> writeSingle(snapshot));
+        return CompletableFuture.runAsync(() -> writeSingle(snapshot), io);
     }
 
     /**
      * Sauvegarde groupee en arriere plan.
      */
+    @Override
     public void saveAll(Collection<FlyUser> users) {
         List<FlyUser> snapshots = snapshot(users);
         if (!snapshots.isEmpty()) {
@@ -130,6 +161,7 @@ public final class FlyStorage {
     /**
      * Sauvegarde bloquante, utilisee uniquement a l'arret du serveur.
      */
+    @Override
     public void saveAllNow(Collection<FlyUser> users) {
         List<FlyUser> snapshots = snapshot(users);
         if (snapshots.isEmpty()) {
@@ -187,6 +219,7 @@ public final class FlyStorage {
      *
      * @return false si la modification a ete ignoree.
      */
+    @Override
     public CompletableFuture<Boolean> addTimeOffline(UUID uuid, String name, double amount, boolean absolute) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -219,6 +252,7 @@ public final class FlyStorage {
         }, io);
     }
 
+    @Override
     public CompletableFuture<Double> readTime(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -237,6 +271,7 @@ public final class FlyStorage {
     /**
      * Import de masse : n'ecrase jamais un joueur deja present.
      */
+    @Override
     public CompletableFuture<Integer> importLegacy(Map<UUID, Double> times) {
         return CompletableFuture.supplyAsync(() -> {
             int imported = 0;
@@ -270,6 +305,7 @@ public final class FlyStorage {
         }, io);
     }
 
+    @Override
     public CompletableFuture<Boolean> metaFlag(String key) {
         return CompletableFuture.supplyAsync(() -> {
             try (PreparedStatement statement = connection.prepareStatement("SELECT v FROM meta WHERE k = ?")) {
@@ -284,6 +320,7 @@ public final class FlyStorage {
         }, io);
     }
 
+    @Override
     public void setMetaFlag(String key, String value) {
         io.execute(() -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -298,6 +335,7 @@ public final class FlyStorage {
         });
     }
 
+    @Override
     public void close() {
         io.shutdown();
         try {

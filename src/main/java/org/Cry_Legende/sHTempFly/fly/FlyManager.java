@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -48,6 +49,12 @@ public final class FlyManager {
      * Il etait refuse ("donnees en cours de chargement") et donc perdu pour les commandes de recompense.
      */
     private final Map<UUID, List<PendingGrant>> pendingGrants = new ConcurrentHashMap<>();
+
+    /**
+     * Mode réseau : départs dont l'écriture en base n'est pas finie. La barrière de SHNetwork et PlayerQuitEvent
+     * déclenchent chacun le départ du joueur, dans l'ordre où ils arrivent : le second reprend le futur du premier.
+     */
+    private final Map<UUID, CompletableFuture<Void>> departures = new ConcurrentHashMap<>();
 
     private record PendingGrant(String name, double amount, boolean absolute) {
     }
@@ -171,19 +178,57 @@ public final class FlyManager {
         }));
     }
 
-    public void handleQuit(Player player) {
+    /**
+     * Départ d'un joueur (déconnexion ou changement de serveur) : écrit ses données.
+     *
+     * @return le futur de l'écriture en base, terminé une fois qu'elle est faite
+     */
+    public CompletableFuture<Void> handleQuit(Player player) {
+        if (plugin.network() == null) {
+            return quit(player);
+        }
+        UUID uuid = player.getUniqueId();
+        CompletableFuture<Void> running = departures.get(uuid);
+        if (running != null) {
+            return running;
+        }
+        CompletableFuture<Void> done = quit(player);
+        if (!done.isDone()) {
+            departures.put(uuid, done);
+            done.whenComplete((result, error) -> departures.remove(uuid, done));
+        }
+        return done;
+    }
+
+    private CompletableFuture<Void> quit(Player player) {
         joinGrace.remove(player.getUniqueId());
         FlyUser user = users.remove(player.getUniqueId());
         plugin.display().remove(player);
         player.removeMetadata(FLIGHT_METADATA, plugin);
+        List<CompletableFuture<?>> writes = new ArrayList<>(2);
         List<PendingGrant> grants = pendingGrants.remove(player.getUniqueId());
         if (grants != null) {
             // Donnees jamais chargees : les dons attendus partent directement en base
-            flushPending(player.getUniqueId(), grants);
+            writes.addAll(flushPending(player.getUniqueId(), grants));
         }
         if (user != null) {
             user.lastSeen(System.currentTimeMillis());
-            plugin.storage().saveAsync(user);
+            writes.add(plugin.storage().saveAsync(user));
+        }
+        return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new));
+    }
+
+    /**
+     * Mode réseau : écrit tout de suite en base le temps d'un joueur de ce serveur après une commande d'administration,
+     * pour que les autres serveurs (et un plantage de celui-ci) ne le perdent pas.
+     */
+    public void writeThrough(Player player) {
+        if (plugin.network() == null) {
+            return;
+        }
+        FlyUser user = users.get(player.getUniqueId());
+        if (user != null) {
+            plugin.storage().saveAll(List.of(user));
         }
     }
 
@@ -202,10 +247,12 @@ public final class FlyManager {
         return absolute ? setTime(player, amount) : addTime(player, amount, notify);
     }
 
-    private void flushPending(UUID uuid, List<PendingGrant> grants) {
+    private List<CompletableFuture<Boolean>> flushPending(UUID uuid, List<PendingGrant> grants) {
+        List<CompletableFuture<Boolean>> writes = new ArrayList<>(grants.size());
         for (PendingGrant grant : grants) {
-            plugin.storage().addTimeOffline(uuid, grant.name(), grant.amount(), grant.absolute());
+            writes.add(plugin.storage().addTimeOffline(uuid, grant.name(), grant.amount(), grant.absolute()));
         }
+        return writes;
     }
 
     /**

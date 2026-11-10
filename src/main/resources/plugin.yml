@@ -8,8 +8,14 @@ softdepend:
   - WorldGuard
   - PlaceholderAPI
   - SuperiorSkyblock2
+  # Facultatif : sans lui, le temps de vol reste dans le SQLite du serveur comme avant.
+  - SHNetwork
+# Chargées par Paper dans le classloader du plugin : le serveur n'embarque que les pilotes MySQL et SQLite.
+# HikariCP et le pilote MariaDB ne servent qu'au mode réseau (temps de vol en MariaDB).
 libraries:
   - org.xerial:sqlite-jdbc:3.44.1.0
+  - com.zaxxer:HikariCP:5.1.0
+  - org.mariadb.jdbc:mariadb-java-client:3.4.1
 
 commands:
   fly:
