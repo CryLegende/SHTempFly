@@ -87,27 +87,13 @@ admin:
   reloaded: '&7&l« &a&lSH &8&l» &7Configuration rechargée.'
   migrated: '&7&l« &a&lSH &8&l» &7Import terminé : &e{AMOUNT} &7joueurs importés.'
   migrate-missing: '&7&l« &c&lSH &8&l» &7Fichier introuvable : &f{ARG}'
-  help:
-    - '&8&l------&dSHTemp&fFly&8&l------'
-    - '&6/fly &7- Active / désactive le fly'
-    - '&6/fly time &7- Temps de vol restant'
-    - '&6/fly [on|off|time] <joueur> &7- Agit sur un autre joueur'
-    - '&6/shtempfly give <joueur> <temps> &7- Ajoute du temps'
-    - '&6/shtempfly remove <joueur> <temps> &7- Retire du temps'
-    - '&6/shtempfly set <joueur> <temps> &7- Définit le temps'
-    - '&6/shtempfly giveall <temps> &7- Ajoute du temps à tous'
-    - '&6/shtempfly check <joueur> &7- Consulte un joueur'
-    - '&6/shtempfly reload &7- Recharge la configuration'
-    - '&6/shtempfly migrate &7- Importe l''ancien TempFly'
-    - '&8Alias &6/tf &8et &6/tempfly &7(ancien plugin, ex: /tf give <joueur> <temps>)'
-  # Aide pour shtempfly.admin.check : seule la consultation d'un joueur
-  help-check:
-    - '&8&l------&dSHTemp&fFly&8&l------'
-    - '&6/shtempfly check <joueur> &7- Consulte le temps de fly d''un joueur'
-    - '&8Alias &6/tfly check <joueur>'
-  # Mode réseau (SHNetwork) : lignes ajoutées à l'aide de shtempfly.admin
-  help-network:
-    - '&6/shtempfly netimport &7- Copie les joueurs du SQLite local dans la base du réseau'
+  # /shtempfly sans argument, ou avec une sous-commande inconnue ou mal formée.
+  # {SUBCOMMANDS} : les sous-commandes que l'expéditeur a le droit d'utiliser
+  usage: '&7&l« &e&lSH &8&l» &7Utilisation : &e/shtempfly &7<&e{SUBCOMMANDS}&7>'
+  # /shtempfly reload : un fichier est illisible, l'ancienne configuration reste en place
+  reload-error: '&7&l« &c&lSH &8&l» &7Rechargement annulé, &c{FILE} &7est illisible : &c{ERROR}'
+  # /shtempfly reload : un réglage lu seulement au démarrage a changé
+  reload-restart: '&7&l« &6&lSH &8&l» &7general.override-commands et la section &6reseau &7ne se lisent qu''au démarrage : &6redémarrage nécessaire &7pour les changer.'
   # Mode réseau : commande transmise au serveur où se trouve le joueur
   forwarded: '&7&l« &e&lSH &8&l» &f{PLAYER} &7est sur le serveur &e{SERVER}&7 : la commande lui a été &etransmise&7.'
   network-only: '&7&l« &c&lSH &8&l» &7Cette commande demande le &cmode réseau &7(SHNetwork installé et base joignable).'

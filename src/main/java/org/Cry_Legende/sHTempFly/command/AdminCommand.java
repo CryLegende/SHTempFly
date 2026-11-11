@@ -18,8 +18,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -37,37 +37,45 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
         List.of("give", "remove", "set", "giveall", "check", "reload", "migrate", "netimport");
 
     /**
-     * Tous les mots reconnus, alias de l'ancien TempFly compris.
+     * Tous les mots reconnus (alias de l'ancien TempFly compris) et la sous-commande à laquelle ils mènent.
+     * Le droit de chacune est shtempfly.admin.&lt;sous-commande&gt;.
      */
-    private static final Set<String> ALL_SUB_COMMANDS = Set.of(
-        "give", "add", "remove", "take", "set", "giveall", "addall",
-        "check", "look", "reload", "migrate", "import");
-
-    /**
-     * True si le premier argument est une sous-commande d'administration.
-     */
-    public static boolean isAdminSubCommand(String argument) {
-        return argument != null && ALL_SUB_COMMANDS.contains(argument.toLowerCase(Locale.ROOT));
-    }
+    private static final Map<String, String> WORDS = Map.ofEntries(
+        Map.entry("give", "give"), Map.entry("add", "give"),
+        Map.entry("remove", "remove"), Map.entry("take", "remove"),
+        Map.entry("set", "set"),
+        Map.entry("giveall", "giveall"), Map.entry("addall", "giveall"),
+        Map.entry("check", "check"), Map.entry("look", "check"),
+        Map.entry("reload", "reload"),
+        Map.entry("migrate", "migrate"), Map.entry("import", "migrate"),
+        Map.entry("netimport", "netimport"));
 
     private static final String ADMIN_PERMISSION = "shtempfly.admin";
-    /** Donne uniquement "check" : pour les modérateurs, sans le reste de l'administration. */
-    private static final String CHECK_PERMISSION = "shtempfly.admin.check";
 
-    private static boolean isCheck(String subCommand) {
-        String sub = subCommand.toLowerCase(Locale.ROOT);
-        return sub.equals("check") || sub.equals("look");
+    /**
+     * Sous-commande à laquelle mène ce mot, ou null.
+     */
+    private static String canonical(String argument) {
+        return argument == null ? null : WORDS.get(argument.toLowerCase(Locale.ROOT));
     }
 
     /**
-     * True si l'expéditeur peut utiliser cette sous-commande : shtempfly.admin pour toutes,
-     * shtempfly.admin.check pour check seulement.
+     * True si le premier argument est une sous-commande d'administration acceptée sur /fly et ses alias
+     * (netimport reste propre à /shtempfly).
+     */
+    public static boolean isAdminSubCommand(String argument) {
+        String sub = canonical(argument);
+        return sub != null && !sub.equals("netimport");
+    }
+
+    /**
+     * True si l'expéditeur peut utiliser cette sous-commande : shtempfly.admin.&lt;sous-commande&gt; ou le parent
+     * shtempfly.admin (toutes). shtempfly.admin.check ne donne que check.
      */
     public static boolean canUse(CommandSender sender, String subCommand) {
-        if (sender.hasPermission(ADMIN_PERMISSION)) {
-            return true;
-        }
-        return subCommand != null && isCheck(subCommand) && sender.hasPermission(CHECK_PERMISSION);
+        String sub = canonical(subCommand);
+        return sub != null
+            && (sender.hasPermission(ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION + "." + sub));
     }
 
     private final SHTempFly plugin;
@@ -76,43 +84,51 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
 
-    private void help(CommandSender sender) {
-        plugin.messages().sendList(sender, sender.hasPermission(ADMIN_PERMISSION) ? "admin.help" : "admin.help-check");
-        if (plugin.network() != null && sender.hasPermission(ADMIN_PERMISSION)) {
-            plugin.messages().sendList(sender, "admin.help-network");
+    /**
+     * Sous-commandes que l'expéditeur a le droit d'utiliser, dans l'ordre de l'aide.
+     */
+    private List<String> allowed(CommandSender sender) {
+        List<String> out = new ArrayList<>();
+        for (String sub : plugin.network() != null ? NETWORK_SUB_COMMANDS : SUB_COMMANDS) {
+            if (canUse(sender, sub)) {
+                out.add(sub);
+            }
         }
+        return out;
+    }
+
+    private void usage(CommandSender sender) {
+        plugin.messages().send(sender, "admin.usage", "{SUBCOMMANDS}", String.join("|", allowed(sender)));
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission(ADMIN_PERMISSION) && !sender.hasPermission(CHECK_PERMISSION)) {
+        if (allowed(sender).isEmpty() && !canUse(sender, "netimport")) {
             plugin.messages().send(sender, "error.no-permission");
             return true;
         }
-        if (args.length == 0) {
-            help(sender);
+        String sub = canonical(args.length > 0 ? args[0] : null);
+        if (sub == null) {
+            usage(sender);
             return true;
         }
-        if (!canUse(sender, args[0])) {
-            // check seul : les autres sous-commandes restent invisibles, comme pour un joueur sans droit
+        if (!canUse(sender, sub)) {
+            // une sous-commande hors de ses droits reste invisible, comme pour un joueur sans droit
             plugin.messages().send(sender, "error.no-permission");
             return true;
         }
 
-        switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "give", "add" -> modify(sender, args, Operation.ADD);
-            case "remove", "take" -> modify(sender, args, Operation.REMOVE);
+        switch (sub) {
+            case "give" -> modify(sender, args, Operation.ADD);
+            case "remove" -> modify(sender, args, Operation.REMOVE);
             case "set" -> modify(sender, args, Operation.SET);
-            case "giveall", "addall" -> giveAll(sender, args);
-            case "check", "look" -> check(sender, args);
-            case "reload" -> {
-                plugin.reloadEverything();
-                plugin.messages().send(sender, "admin.reloaded");
-            }
-            case "migrate", "import" -> plugin.runMigration(sender);
+            case "giveall" -> giveAll(sender, args);
+            case "check" -> check(sender, args);
+            case "reload" -> plugin.reload(sender);
+            case "migrate" -> plugin.runMigration(sender);
             case "netimport" -> plugin.runNetworkImport(sender);
-            default -> help(sender);
+            default -> usage(sender);
         }
         return true;
     }
@@ -123,7 +139,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void modify(CommandSender sender, String[] args, Operation operation) {
         if (args.length < 3) {
-            plugin.messages().sendList(sender, "admin.help");
+            usage(sender);
             return;
         }
         String raw = timeArgument(args, 2);
@@ -217,7 +233,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void giveAll(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            plugin.messages().sendList(sender, "admin.help");
+            usage(sender);
             return;
         }
         String raw = timeArgument(args, 1);
@@ -245,7 +261,7 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void check(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            help(sender);
+            usage(sender);
             return;
         }
         Messages messages = plugin.messages();
@@ -336,21 +352,19 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission(ADMIN_PERMISSION) && !sender.hasPermission(CHECK_PERMISSION)) {
+        List<String> permitted = allowed(sender);
+        if (permitted.isEmpty()) {
             return List.of();
         }
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            return (plugin.network() != null ? NETWORK_SUB_COMMANDS : SUB_COMMANDS).stream()
-                .filter(value -> value.startsWith(prefix) && canUse(sender, value))
-                .toList();
+            return permitted.stream().filter(value -> value.startsWith(prefix)).toList();
         }
         if (args.length >= 2 && !canUse(sender, args[0])) {
             return List.of();
         }
         if (args.length == 2) {
-            String sub = args[0].toLowerCase(Locale.ROOT);
-            if (sub.equals("giveall") || sub.equals("addall")) {
+            if ("giveall".equals(canonical(args[0]))) {
                 return List.of("30m", "1h", "1j");
             }
             String prefix = args[1].toLowerCase(Locale.ROOT);

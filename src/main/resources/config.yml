@@ -23,7 +23,8 @@
 #  /shtempfly set <joueur> <temps>      Définit le temps
 #  /shtempfly giveall <temps>           Ajoute du temps à tous (alias : addall)
 #  /shtempfly check <joueur>            Consulte un joueur    (alias : look)
-#  /shtempfly reload                    Recharge config + messages
+#  /shtempfly reload                    Recharge config + messages (un fichier illisible ne change rien ;
+#                                       general.override-commands et la section reseau demandent un redémarrage)
 #  /shtempfly migrate                   Importe l'ancien TempFly (alias : import)
 #  /shtempfly netimport                 Avec SHNetwork : copie les joueurs de data.db (SQLite de ce serveur) dans la
 #                                       base du réseau, sans rien écraser (voir la section 'reseau' en bas du fichier)
@@ -34,6 +35,8 @@
 #
 #  Les sous-commandes d'administration marchent aussi sur /fly et ses alias
 #  (compatibilité ancien plugin) : "/tf give <joueur> <temps>" fonctionne.
+#  Sans argument ou avec une sous-commande inconnue, /shtempfly affiche une ligne d'usage qui ne liste que les
+#  sous-commandes permises à l'expéditeur.
 #  Formats de durée acceptés : 30m · 2h · 1j12h · 3600 (secondes) · "30 minutes"
 #  Unités : s/sec/seconde(s) · m/min/minute(s) · h/heure(s) · j/jour(s)
 #
@@ -44,9 +47,15 @@
 #                            (liste modifiable dans fly.unlimited-permissions)
 #  shtempfly.fly.others      Active / désactive le fly d'un autre joueur
 #  shtempfly.bypass          Ignore zones, îles et hauteur maximale, ne consomme rien
-#  shtempfly.admin           Accès à /shtempfly et aux sous-commandes de /fly
-#  shtempfly.admin.check     Seulement "check" (/tfly check <joueur>), pour les modérateurs ;
-#                            inclus dans shtempfly.admin
+#  shtempfly.admin           Toutes les sous-commandes de /shtempfly et de /fly (parent des nœuds ci-dessous)
+#  shtempfly.admin.give      give (add)
+#  shtempfly.admin.remove    remove (take)
+#  shtempfly.admin.set       set
+#  shtempfly.admin.giveall   giveall (addall)
+#  shtempfly.admin.check     check (look) : "/tfly check <joueur>", pour les modérateurs
+#  shtempfly.admin.reload    reload
+#  shtempfly.admin.migrate   migrate (import)
+#  shtempfly.admin.netimport netimport
 #
 #  Aucune permission n'est nécessaire pour /fly : un joueur sans temps et sans
 #  permission illimitée se voit simplement refuser le vol.

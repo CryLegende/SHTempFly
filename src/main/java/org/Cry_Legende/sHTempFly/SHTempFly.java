@@ -16,6 +16,7 @@ import org.Cry_Legende.sHTempFly.network.FlyDatabase;
 import org.Cry_Legende.sHTempFly.network.NetworkFlyStorage;
 import org.Cry_Legende.sHTempFly.network.NetworkLink;
 import org.Cry_Legende.sHTempFly.network.ShNetworkLink;
+import org.Cry_Legende.sHTempFly.util.YamlCheck;
 import org.Cry_Legende.sHTempFly.zone.ZoneService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -24,6 +25,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -108,11 +110,41 @@ public final class SHTempFly extends JavaPlugin {
         }
     }
 
-    public void reloadEverything() {
+    /**
+     * /shtempfly reload : relit config.yml et messages.yml. Un fichier illisible ne change rien : l'ancienne
+     * configuration reste en mémoire et l'erreur est affichée avec le nom du fichier. Les données ne sont pas touchées.
+     */
+    public void reload(CommandSender sender) {
+        for (String name : List.of("config.yml", "messages.yml")) {
+            String error = YamlCheck.error(new File(getDataFolder(), name));
+            if (error != null) {
+                getLogger().warning(name + " illisible, configuration inchangée : " + error);
+                messages.send(sender, "admin.reload-error", "{FILE}", name, "{ERROR}", error);
+                return;
+            }
+        }
+        String restartBefore = restartSettings();
+        reloadEverything();
+        messages.send(sender, "admin.reloaded");
+        if (!restartBefore.equals(restartSettings())) {
+            messages.send(sender, "admin.reload-restart");
+        }
+    }
+
+    /**
+     * Réglages lus seulement au démarrage : leur changement demande un redémarrage.
+     */
+    private String restartSettings() {
+        ConfigurationSection network = getConfig().getConfigurationSection("reseau");
+        return config.overrideCommands() + "|" + (network == null ? "" : network.getValues(true));
+    }
+
+    private void reloadEverything() {
         config.load();
         messages.load();
         zones.setup();
         setupSkyblock();
+        setupPlaceholders();
         flyManager.reschedule();
         for (Player player : Bukkit.getOnlinePlayers()) {
             flyManager.refresh(player);
@@ -264,6 +296,10 @@ public final class SHTempFly extends JavaPlugin {
     }
 
     private void setupPlaceholders() {
+        if (placeholders != null) {
+            placeholders.unregister();
+            placeholders = null;
+        }
         if (!config.placeholderApiEnabled()
             || getServer().getPluginManager().getPlugin("PlaceholderAPI") == null) {
             return;

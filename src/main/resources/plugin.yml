@@ -41,10 +41,38 @@ permissions:
     description: Ignore toutes les restrictions de zone.
     default: op
   shtempfly.admin:
-    description: Accès à /shtempfly et aux sous-commandes de /fly (inclut shtempfly.admin.check).
+    description: Toutes les sous-commandes de /shtempfly et de /fly (give, remove, set, giveall, check, reload, migrate, netimport).
     default: op
     children:
+      shtempfly.admin.give: true
+      shtempfly.admin.remove: true
+      shtempfly.admin.set: true
+      shtempfly.admin.giveall: true
       shtempfly.admin.check: true
+      shtempfly.admin.reload: true
+      shtempfly.admin.migrate: true
+      shtempfly.admin.netimport: true
+  shtempfly.admin.give:
+    description: Ajouter du temps de fly à un joueur (/shtempfly give, ancien nom add).
+    default: op
+  shtempfly.admin.remove:
+    description: Retirer du temps de fly à un joueur (/shtempfly remove, ancien nom take).
+    default: op
+  shtempfly.admin.set:
+    description: Définir le temps de fly d'un joueur (/shtempfly set).
+    default: op
+  shtempfly.admin.giveall:
+    description: Ajouter du temps de fly à tous les joueurs (/shtempfly giveall, ancien nom addall).
+    default: op
   shtempfly.admin.check:
     description: Consulte le temps de fly d'un joueur (/shtempfly check, /tfly check) sans les autres commandes d'administration.
+    default: op
+  shtempfly.admin.reload:
+    description: Recharger config.yml et messages.yml (/shtempfly reload).
+    default: op
+  shtempfly.admin.migrate:
+    description: Importer l'ancien TempFly (/shtempfly migrate, ancien nom import).
+    default: op
+  shtempfly.admin.netimport:
+    description: Mode réseau, copier data.db dans la base du réseau (/shtempfly netimport).
     default: op

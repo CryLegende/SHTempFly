@@ -41,7 +41,12 @@ Sans SHNetwork, ou sans les clés `reseau` dans la configuration, le plugin se c
 | Commande | Alias | Description | Permission |
 |---|---|---|---|
 | `/fly` | `/tf`, `/tfly`, `/tempfly` | Active / désactive le fly, ou affiche le temps restant. | — |
-| `/shtempfly` | `/shtf`, `/flyadmin` | Commandes d'administration du fly. | — |
+| `/shtempfly give\|remove\|set <joueur> <temps>` | `/shtf`, `/flyadmin` | Ajoute, retire ou définit le temps de fly (anciens noms `add`, `take`, aussi sur `/fly` et ses alias). | `shtempfly.admin.give\|remove\|set` |
+| `/shtempfly giveall <temps>` | `/shtf`, `/flyadmin` | Ajoute du temps à tous les joueurs (ancien nom `addall`). | `shtempfly.admin.giveall` |
+| `/shtempfly check <joueur>` | `/shtf`, `/flyadmin` | Consulte le temps de fly d'un joueur (ancien nom `look`). | `shtempfly.admin.check` |
+| `/shtempfly reload` | `/shtf`, `/flyadmin` | Recharge `config.yml` et `messages.yml` (un fichier illisible ne change rien). | `shtempfly.admin.reload` |
+| `/shtempfly migrate` | `/shtf`, `/flyadmin` | Importe l'ancien TempFly (ancien nom `import`). | `shtempfly.admin.migrate` |
+| `/shtempfly netimport` | `/shtf`, `/flyadmin` | Mode réseau : copie `data.db` dans la base du réseau. | `shtempfly.admin.netimport` |
 
 ## Permissions
 
@@ -50,7 +55,8 @@ Sans SHNetwork, ou sans les clés `reseau` dans la configuration, le plugin se c
 | `shtempfly.fly.unlimited` | Fly illimité, sans timer, avec activation / désactivation. | `false` |
 | `shtempfly.fly.others` | Active / désactive le fly d'un autre joueur. | `op` |
 | `shtempfly.bypass` | Ignore toutes les restrictions de zone. | `op` |
-| `shtempfly.admin` | Accès à /shtempfly et aux sous-commandes de /fly (inclut `shtempfly.admin.check`). | `op` |
+| `shtempfly.admin` | Toutes les sous-commandes de `/shtempfly` et de `/fly` (parent des nœuds `shtempfly.admin.*`). | `op` |
+| `shtempfly.admin.give`, `.remove`, `.set`, `.giveall`, `.reload`, `.migrate`, `.netimport` | Une par sous-commande du même nom. | `op` |
 | `shtempfly.admin.check` | Seulement `check` (`/tfly check <joueur>`), pour les modérateurs. | `op` |
 
 ## Configuration
