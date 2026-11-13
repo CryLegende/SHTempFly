@@ -83,7 +83,7 @@ general:
   override-commands: true
 
 fly:
-  # Permissions qui donnent le fly illimité (VIP+, VipElite...).
+  # Permissions qui donnent le fly illimité (grades VIP...).
   # Un joueur qui possède une de ces permissions :
   #  - ne consomme jamais de temps
   #  - peut activer / désactiver son fly librement
@@ -104,7 +104,7 @@ fly:
   auto-enable-on-zone-exit: true
 
   # Hauteur maximale (Y) autorisée en vol. -1 pour aucune limite.
-  max-height: 340
+  max-height: 320
 
   # Vitesse de vol appliquée par le plugin (0.1 à 1.0). -1 pour ne pas y toucher.
   speed: -1
@@ -142,10 +142,7 @@ timer:
   # Les modes FREE et UNMANAGED ne consomment jamais, quel que soit le multiplicateur.
   drain-multiplier:
     worlds:
-      Revent: 0.1
-      spawn: 0.1
-      arene: 0.1
-      Easter: 0.1
+      world_nether: 0.1
     regions: {}
 
   # Perte de temps pendant que le joueur est hors ligne.
@@ -170,29 +167,20 @@ zones:
   # En cas de régions superposées, celle avec la priorité WorldGuard la plus haute gagne.
   regions:
     'spawn': DENY
-    'spawn-arene': DENY
-    'arene': DENY
-    '1vs1': DENY
 
   # Configuration par monde. Les régions définies ici ont priorité sur la liste globale.
   worlds:
-    arene:
-      mode: DENY
-    Halloween:
-      mode: DENY
-    Paques:
-      mode: DENY
-    # Mondes de minijeux : le vol est refusé à tout le monde.
+    # Monde de minijeux : le vol est refusé à tout le monde.
     # Les joueurs éliminés passent en spectateur et volent quand même,
     # grâce à fly.ignored-gamemodes ci-dessus.
-    Revent:
-      mode: DENY
     minijeux:
+      mode: DENY
+    world_nether:
       mode: UNMANAGED
-    SuperiorWorld:
+    world:
       mode: ALLOW
       regions:
-        'spawn-nosit': ALLOW
+        'spawn': ALLOW
 
 hooks:
   worldguard:
@@ -265,8 +253,8 @@ reseau:
   # le joueur avant de lire son temps
   attente-max-secondes: 10
   base-de-donnees:
-    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
-    utilisateur: shtempfly
+    url: "jdbc:mariadb://127.0.0.1:3306/minecraft"
+    utilisateur: CHANGE_ME
     mot-de-passe: CHANGE_ME
     # Délai maximal de connexion et de réponse de la base, en millisecondes
     delai-ms: 3000
