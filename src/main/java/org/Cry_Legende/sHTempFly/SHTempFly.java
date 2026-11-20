@@ -307,7 +307,6 @@ public final class SHTempFly extends JavaPlugin {
         try {
             placeholders = new PlaceholderHook(this);
             placeholders.register();
-            getLogger().info("PlaceholderAPI detecte, placeholders %shtempfly_...% disponibles.");
         } catch (Throwable throwable) {
             placeholders = null;
             getLogger().warning("Hook PlaceholderAPI indisponible : " + throwable);

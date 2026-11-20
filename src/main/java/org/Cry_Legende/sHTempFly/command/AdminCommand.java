@@ -321,6 +321,10 @@ public final class AdminCommand implements CommandExecutor, TabCompleter {
     }
 
     private void feedback(CommandSender sender, Operation operation, String target, long seconds) {
+        // La console (votes, boxes, quêtes) en lance des centaines par jour : pas de compte rendu, seulement les erreurs
+        if (sender instanceof org.bukkit.command.ConsoleCommandSender || sender instanceof org.bukkit.command.RemoteConsoleCommandSender) {
+            return;
+        }
         String path = switch (operation) {
             case ADD -> "grant.given-other";
             case REMOVE -> "grant.removed-other";

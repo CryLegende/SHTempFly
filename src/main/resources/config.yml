@@ -32,6 +32,7 @@
 #
 #  Avec SHNetwork, give/remove/set et "/fly [on|off|time] <joueur>" visant un joueur d'un autre serveur lui sont
 #  transmis ; giveall touche tous les joueurs du réseau ; un joueur connecté nulle part se modifie en base.
+#  Depuis la console, give, remove et set ne répondent qu'en cas d'erreur.
 #
 #  Les sous-commandes d'administration marchent aussi sur /fly et ses alias
 #  (compatibilité ancien plugin) : "/tf give <joueur> <temps>" fonctionne.

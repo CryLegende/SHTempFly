@@ -33,7 +33,6 @@ public final class ZoneService {
         }
         try {
             worldGuard = new WorldGuardBridge();
-            plugin.getLogger().info("WorldGuard detecte, gestion des regions active.");
         } catch (Throwable throwable) {
             plugin.getLogger().warning("Impossible d'initialiser WorldGuard : " + throwable.getMessage());
         }
