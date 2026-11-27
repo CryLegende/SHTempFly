@@ -233,6 +233,10 @@ display:
     # Durée (secondes) correspondant à une barre pleine.
     full-at-seconds: 3600
     show-unlimited: false
+    # Mondes où la barre est affichée. Liste vide ([]) : tous les mondes.
+    # Le temps de vol continue de s'écouler selon la section 'timer', barre affichée ou non.
+    worlds:
+      - 'SuperiorWorld'
 
 migration:
   # Import automatique de l'ancien plugin TempFly au premier démarrage.

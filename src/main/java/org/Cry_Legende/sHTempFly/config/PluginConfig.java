@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Vue typee de config.yml. Tout est resolu une seule fois au chargement pour que
@@ -80,6 +81,7 @@ public final class PluginConfig {
     private BarStyle bossBarStyle = BarStyle.SOLID;
     private double bossBarFullAt = 3600;
     private boolean bossBarShowUnlimited;
+    private Set<String> bossBarWorlds = Set.of();
 
     private boolean autoImport = true;
     private String legacyDataFile = "plugins/TempFly/data.yml";
@@ -171,6 +173,9 @@ public final class PluginConfig {
         bossBarStyle = parseEnum(BarStyle.class, config.getString("display.boss-bar.style"), BarStyle.SOLID);
         bossBarFullAt = Math.max(1D, config.getDouble("display.boss-bar.full-at-seconds", 3600));
         bossBarShowUnlimited = config.getBoolean("display.boss-bar.show-unlimited", false);
+        Set<String> barWorlds = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        barWorlds.addAll(config.getStringList("display.boss-bar.worlds"));
+        bossBarWorlds = barWorlds;
 
         autoImport = config.getBoolean("migration.auto-import", true);
         legacyDataFile = config.getString("migration.legacy-data-file", "plugins/TempFly/data.yml");
@@ -415,6 +420,13 @@ public final class PluginConfig {
 
     public boolean bossBarShowUnlimited() {
         return bossBarShowUnlimited;
+    }
+
+    /**
+     * True si la barre de boss s'affiche dans ce monde (liste vide : tous les mondes).
+     */
+    public boolean bossBarShownIn(String world) {
+        return bossBarWorlds.isEmpty() || bossBarWorlds.contains(world);
     }
 
     public boolean autoImport() {

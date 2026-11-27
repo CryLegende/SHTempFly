@@ -55,7 +55,8 @@ public final class DisplayService {
             clearActionBar(player);
         }
 
-        if (config.bossBarEnabled() && (!unlimited || config.bossBarShowUnlimited())) {
+        if (config.bossBarEnabled() && (!unlimited || config.bossBarShowUnlimited())
+            && config.bossBarShownIn(player.getWorld().getName())) {
             String text = unlimited
                 ? messages.get("boss-bar-unlimited")
                 : messages.get("boss-bar", messages.timePlaceholders(user.timeSeconds()));
